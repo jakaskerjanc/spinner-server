@@ -11,7 +11,10 @@
     "lint:fix": "eslint src/* --fix",
     "type-check": "tsc --project tsconfig.json --pretty --noEmit",
     "scrapper:fetch": "node dist/scrapper.js scrapeLatest",
-    "scrapper:updateOnGoing": "node dist/scrapper.js updateOnGoingDescriptions"
+    "scrapper:updateOnGoing": "node dist/scrapper.js updateOnGoingDescriptions",
+    "lint:prisma": "prisma format",
+    "connect:main": "pscale connect spinner-db main --port 3309",
+    "connect:dev": "pscale connect spinner-db dev --port 3309"
   },
   "dependencies": {
     "@prisma/client": "^4.12.0",
