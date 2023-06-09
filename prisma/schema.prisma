@@ -1,0 +1,42 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model Event {
+  id             Int          @id
+  lat            Float
+  lon            Float
+  description    String?      @db.VarChar(2048)
+  createTime     DateTime
+  reportTime     DateTime
+  municipalityId Int
+  title          String?
+  onGoing        Boolean?
+  eventTypeId    Int
+  municipality   Municipality @relation(fields: [municipalityId], references: [id])
+  eventType      EventType    @relation(fields: [eventTypeId], references: [id])
+
+  @@index([eventTypeId])
+  @@index([municipalityId])
+  @@fulltext([description])
+  @@fulltext([title])
+}
+
+model EventType {
+  name  String  @unique
+  id    Int     @id
+  Event Event[]
+}
+
+model Municipality {
+  name  String  @unique
+  id    Int     @id
+  Event Event[]
+}

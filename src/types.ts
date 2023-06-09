@@ -1,4 +1,4 @@
-type VecjiObsegDogodek = {
+type SpinLargeEvent = {
   obcinaMID: number
   obcinaNaziv: string
   besediloList: Array<{
@@ -7,23 +7,35 @@ type VecjiObsegDogodek = {
   }>
 }
 
-type LokacijaDogodek = {
-  barva: string
-  ikona: string
+type SpinResponse = {
+  statusCode: number
+}
+
+export type SpinEventWihoutId = {
+  barva: number
+  ikona: number
   intervencijaVrstaNaziv: string
   nastanekCas: string
   obcinaNaziv: string
   prijavaCas: string
   wgsLat: number
   wgsLon: number
+  besedilo?: string
+  dogodekNaziv?: string
 }
 
-export type LokacijaResponse = {
-  statusCode: number
-  value: LokacijaDogodek[]
+export type SpinEvent = {
+  id: number
+} & SpinEventWihoutId
+
+export type SpinEventResponse = SpinResponse & {
+  value?: SpinEventWihoutId
 }
 
-export type VecjiObsegResponse = {
-  statusCode: number
-  value: VecjiObsegDogodek[]
+export type SpinEventsResponse = SpinResponse & {
+  value: SpinEventWihoutId[]
+}
+
+export type SpinLargeEventsResponse = SpinResponse & {
+  value: SpinLargeEvent[]
 }
