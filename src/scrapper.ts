@@ -16,8 +16,7 @@ const parser: Parser<CustomFeed, CustomItem> = new Parser({
     }
 })
 
-// eslint-disable-next-line no-unused-vars
-async function scrapeFromLastInsertedToLatest () {
+async function scrapeLatest () {
     const spinEventIds = await fetchRssEventIds()
 
     const lastSpinEventId = max(spinEventIds)
@@ -46,8 +45,7 @@ async function scrapeFromLastInsertedToLatest () {
     console.log(`Inserted ${nOfInserted} events.`)
 }
 
-// eslint-disable-next-line no-unused-vars
-async function updateDescriptionForOnGoingEvents () {
+async function updateOnGoingDescriptions () {
     const onGoingEventIds = (await prisma.event.findMany({
         where: {
             onGoing: true
@@ -67,7 +65,6 @@ async function updateDescriptionForOnGoingEvents () {
     console.log(`Updated ${updatedEvent.length} event descriptions.`)
 }
 
-// eslint-disable-next-line no-unused-vars
 async function updateOnGoingStatusForOldEvents () {
     const twoDaysAgoDate = new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 2)
 
@@ -182,3 +179,11 @@ async function getAllEventTypes (): Promise<EventType[]> {
     const eventTypes = await prisma.eventType.findMany()
     return eventTypes
 }
+
+module.exports = {
+    scrapeLatest,
+    updateOnGoingDescriptions,
+    updateOnGoingStatusForOldEvents
+}
+
+require('make-runnable')
