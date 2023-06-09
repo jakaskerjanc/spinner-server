@@ -40,3 +40,15 @@ model Municipality {
   id    Int     @id
   Event Event[]
 }
+
+model Log {
+  id             Int      @id @default(autoincrement())
+  logTime        DateTime @default(now())
+  changedEntries Int
+  updated        Change
+}
+
+enum Change {
+  UPDATE_ONGOING
+  FETCH_LATEST
+}

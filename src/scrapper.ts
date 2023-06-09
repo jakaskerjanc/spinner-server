@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Change } from '@prisma/client'
 import axios from 'axios'
 import { last, max } from 'lodash'
 import Parser from 'rss-parser'
@@ -35,6 +35,14 @@ async function scrapeFromLastInsertedToLatest () {
     }
 
     const nOfInserted = await scrapeFromToId(lastInsertedEventId + 1, lastSpinEventId)
+
+    await prisma.log.create({
+        data: {
+            updated: Change.FETCH_LATEST,
+            changedEntries: nOfInserted
+        }
+    })
+
     console.log(`Inserted ${nOfInserted} events.`)
 }
 
@@ -48,6 +56,13 @@ async function updateDescriptionForOnGoingEvents () {
 
     const updatedEventsOrNull = await Promise.all(onGoingEventIds.map(updateDescriptionOnEvent))
     const updatedEvent = updatedEventsOrNull.filter(event => event !== null) as Event[]
+
+    await prisma.log.create({
+        data: {
+            updated: Change.UPDATE_ONGOING,
+            changedEntries: updatedEvent.length
+        }
+    })
 
     console.log(`Updated ${updatedEvent.length} event descriptions.`)
 }
