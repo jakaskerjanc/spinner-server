@@ -11,7 +11,7 @@ type SpinResponse = {
   statusCode: number
 }
 
-export type SpinEventWihoutId = {
+type SpinEventWihoutId = {
   barva: number
   ikona: number
   intervencijaVrstaNaziv: string
