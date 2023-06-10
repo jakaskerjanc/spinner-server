@@ -101,6 +101,34 @@ app.get('/eventsArchive/:id', check('id').isNumeric().toInt(), async (req: Reque
     }
 })
 
+app.get('/municipalities', async (_req: Request, res: Response) => {
+    try {
+        const municipalities = await prisma.municipality.findMany({
+            orderBy: {
+                name: 'asc'
+            }
+        })
+        res.send(municipalities)
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ error })
+    }
+})
+
+app.get('/eventTypes', async (_req: Request, res: Response) => {
+    try {
+        const eventTypes = await prisma.eventType.findMany({
+            orderBy: {
+                id: 'asc'
+            }
+        })
+        res.send(eventTypes)
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ error })
+    }
+})
+
 app.listen(port, () => {
     console.log(`Example app listening on port http://${hostname}:${port}`)
 })
