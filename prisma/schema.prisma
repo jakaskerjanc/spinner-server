@@ -38,6 +38,7 @@ model EventType {
 model Municipality {
   name  String  @unique
   id    Int     @id
+  MID   Int?
   Event Event[]
 }
 
