@@ -38,7 +38,7 @@ model EventType {
 model Municipality {
   name  String  @unique
   id    Int     @id
-  MID   Int?
+  MID   Int
   Event Event[]
 }
 
