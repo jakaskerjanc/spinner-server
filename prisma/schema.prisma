@@ -36,10 +36,11 @@ model EventType {
 }
 
 model Municipality {
-  name  String  @unique
-  id    Int     @id
-  MID   Int
-  Event Event[]
+  name           String                  @unique
+  id             Int                     @id
+  MID            Int                     @unique
+  outlinePolygon Unsupported("polygon")
+  Event          Event[]
 }
 
 model Log {
