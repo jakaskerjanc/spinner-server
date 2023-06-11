@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv'
 import express, { type Request, type Response } from 'express'
 import { SpinEventsResponse, SpinLargeEventsResponse } from './types'
 import { PrismaClient } from '@prisma/client'
+import type { Event } from '@prisma/client'
 import { query, check, validationResult, matchedData } from 'express-validator'
 import { stringArrayParameterToIntArray } from './utils'
 
@@ -30,8 +31,13 @@ const validationChain = [
     query('onGoing').optional().isBoolean().toBoolean(),
     query('createTimeFrom').optional().isDate().toDate(),
     query('createTimeTo').optional().isDate().toDate(),
-    query('count').optional().isNumeric().default(50).toInt(),
-    query('order').optional().isIn(['asc', 'desc']).default('desc')
+    query('count').optional().isNumeric().toInt(),
+    query('order').optional().isIn(['asc', 'desc']),
+    query('lat').optional().isNumeric().toFloat(),
+    query('lon').optional().isNumeric().toFloat(),
+    query('distance').optional().isNumeric().toInt(),
+    query('order').default('desc'),
+    query('count').default(20)
 ]
 
 app.get('/eventsArchive', validationChain, async (req: Request, res: Response) => {
@@ -40,12 +46,30 @@ app.get('/eventsArchive', validationChain, async (req: Request, res: Response) =
         res.status(400).send({ errors: result.array() })
         return
     }
-    const { description, title, municipalityId: municipalityIdStr, eventTypeId: eventTypeIdInt, count, onGoing, createTimeFrom, createTimeTo, order } = matchedData(req)
+    const {
+        description,
+        title,
+        municipalityId: municipalityIdStr,
+        eventTypeId: eventTypeIdInt,
+        count,
+        onGoing,
+        createTimeFrom,
+        createTimeTo,
+        order,
+        lat,
+        lon,
+        distance
+    } = matchedData(req)
 
     const municipalityId = stringArrayParameterToIntArray(municipalityIdStr)
     const eventTypeId = stringArrayParameterToIntArray(eventTypeIdInt)
 
     try {
+        let eventsIdsMatchedByLocation: number[] | undefined
+        if (lat !== undefined && lon !== undefined && distance !== undefined) {
+            eventsIdsMatchedByLocation = (await prisma.$queryRaw<Pick<Event, 'id'>[]>`SELECT id FROM Event WHERE ST_Distance_Sphere(location, Point(${lon}, ${lat})) < ${distance}`).map(event => event.id)
+        }
+
         const events = await prisma.event.findMany({
             where: {
                 description: { search: description },
@@ -56,14 +80,30 @@ app.get('/eventsArchive', validationChain, async (req: Request, res: Response) =
                 createTime: {
                     lt: createTimeTo,
                     gt: createTimeFrom
+                },
+                id: {
+                    in: eventsIdsMatchedByLocation
                 }
             },
             orderBy: {
                 createTime: order
             },
-            include: {
-                eventType: true,
-                municipality: true
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                createTime: true,
+                onGoing: true,
+                eventType: {
+                    select: {
+                        name: true
+                    }
+                },
+                municipality: {
+                    select: {
+                        name: true
+                    }
+                }
             },
             take: count
         })
