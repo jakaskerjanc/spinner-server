@@ -10,18 +10,19 @@ datasource db {
 }
 
 model Event {
-  id             Int          @id
+  id             Int                   @id
   lat            Float
   lon            Float
-  description    String?      @db.VarChar(2048)
+  description    String?               @db.VarChar(2048)
   createTime     DateTime
   reportTime     DateTime
   municipalityId Int
   title          String?
   onGoing        Boolean?
   eventTypeId    Int
-  municipality   Municipality @relation(fields: [municipalityId], references: [id])
-  eventType      EventType    @relation(fields: [eventTypeId], references: [id])
+  location       Unsupported("point")?
+  municipality   Municipality          @relation(fields: [municipalityId], references: [id])
+  eventType      EventType             @relation(fields: [eventTypeId], references: [id])
 
   @@index([eventTypeId])
   @@index([municipalityId])
@@ -36,9 +37,9 @@ model EventType {
 }
 
 model Municipality {
-  name           String                  @unique
-  id             Int                     @id
-  MID            Int                     @unique
+  name           String                 @unique
+  id             Int                    @id
+  MID            Int                    @unique
   outlinePolygon Unsupported("polygon")
   Event          Event[]
 }
