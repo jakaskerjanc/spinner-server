@@ -29,6 +29,16 @@ model Event {
   @@fulltext([title])
 }
 
+model LargeEvent {
+  id             Int          @id @default(autoincrement())
+  createTime     DateTime
+  description    String       @db.VarChar(4096)
+  municipalityId Int
+  municipality   Municipality @relation(fields: [municipalityId], references: [id])
+
+  @@index([municipalityId])
+}
+
 model EventType {
   name  String  @unique
   id    Int     @id
@@ -40,7 +50,8 @@ model Municipality {
   id             Int                    @id
   MID            Int                    @unique
   outlinePolygon Unsupported("polygon")
-  Event          Event[]
+  events         Event[]
+  largeEvents    LargeEvent[]
 }
 
 model Log {
