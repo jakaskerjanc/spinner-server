@@ -1,20 +1,11 @@
 import { PrismaClient, Change } from '@prisma/client'
-import axios from 'axios'
-import { last, max } from 'lodash'
-import Parser from 'rss-parser'
-import { SpinEventResponse, SpinEvent } from './types'
+import { max } from 'lodash'
+import { SpinEvent } from '../types'
 import type { Event, Municipality, EventType } from '@prisma/client'
+import { fetchEvent, fetchEvents, fetchRssEventIds } from './eventFetch'
+import { getAllEventTypes, getAllMunicipalities } from './databaseHandler'
 
 const prisma = new PrismaClient()
-
-type CustomItem = { link: string }
-type CustomFeed = { items: Array<CustomItem> }
-const parser: Parser<CustomFeed, CustomItem> = new Parser({
-    customFields: {
-        feed: ['items'],
-        item: ['link']
-    }
-})
 
 async function scrapeLatest () {
     const spinEventIds = await fetchRssEventIds()
@@ -115,34 +106,11 @@ async function scrapeFromToId (startId: number, endId: number) {
     return insertEvents(dbEvents)
 }
 
-async function fetchEvents (ids: number[]): Promise<SpinEvent[]> {
-    const events = await Promise.all(ids.map(fetchEvent))
-    return events.filter(event => event !== null) as SpinEvent[]
-}
-
-async function fetchEvent (id: number): Promise<SpinEvent | null> {
-    const { data } = await axios.get<SpinEventResponse>(`https://spin3.sos112.si/api/javno/lokacija/${id}`)
-
-    return data.value
-        ? {
-            id,
-            ...data.value
-        }
-        : null
-}
-
 async function insertEvents (events: Event[]): Promise<number> {
     const numberOfInsertedEvents = await prisma.event.createMany({
         data: events
     })
     return numberOfInsertedEvents.count
-}
-
-async function fetchRssEventIds (): Promise<number[]> {
-    const rssFeed = await parser.parseURL('https://spin3.sos112.si/api/javno/ODRSS/true')
-    const eventLinks = rssFeed.items.map(item => item.link)
-    const eventIds = eventLinks.map(eventLink => Number(last(eventLink.split('/'))))
-    return eventIds
 }
 
 function reponseToEventMap ({ spinEvent, allEventTypes, allMunicipalities } : { spinEvent: SpinEvent, allEventTypes: EventType[], allMunicipalities: Municipality[] }): Event {
@@ -168,16 +136,6 @@ function reponseToEventMap ({ spinEvent, allEventTypes, allMunicipalities } : { 
         title: spinEvent.dogodekNaziv ? spinEvent.dogodekNaziv : null,
         onGoing: spinEvent.ikona === 0
     }
-}
-
-async function getAllMunicipalities (): Promise<Municipality[]> {
-    const municipalities = await prisma.municipality.findMany()
-    return municipalities
-}
-
-async function getAllEventTypes (): Promise<EventType[]> {
-    const eventTypes = await prisma.eventType.findMany()
-    return eventTypes
 }
 
 module.exports = {
