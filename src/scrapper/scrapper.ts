@@ -1,77 +1,41 @@
-import { PrismaClient, Change } from '@prisma/client'
+import { Change } from '@prisma/client'
 import { max } from 'lodash'
 import { SpinEvent } from '../types'
 import type { Event, Municipality, EventType } from '@prisma/client'
 import { fetchEvent, fetchEvents, fetchRssEventIds } from './eventFetch'
-import { getAllEventTypes, getAllMunicipalities } from './databaseHandler'
-
-const prisma = new PrismaClient()
+import { findLastInsertedEvent, getAllEventTypes, getAllMunicipalities, getOnGoingEventIds, insertEvents, insertLogEntry, updateEvent, updateStatusOnOldOnGoingEvents } from './databaseHandler'
 
 async function scrapeLatest () {
     const spinEventIds = await fetchRssEventIds()
 
     const lastSpinEventId = max(spinEventIds)
-    const lastInsertedEventId = (await prisma.event.findFirst({
-        orderBy: {
-            id: 'desc'
-        },
-        select: {
-            id: true
-        }
-    }))?.id
+    const lastInsertedEventId = await findLastInsertedEvent()
 
     if (!lastInsertedEventId || !lastSpinEventId) {
         throw new Error('No events found')
     }
 
     const nOfInserted = await scrapeFromToId(lastInsertedEventId + 1, lastSpinEventId)
-
-    await prisma.log.create({
-        data: {
-            updated: Change.FETCH_LATEST,
-            changedEntries: nOfInserted
-        }
-    })
+    await insertLogEntry(Change.FETCH_LATEST, nOfInserted)
 
     console.log(`Inserted ${nOfInserted} events.`)
 }
 
 async function updateOnGoingDescriptions () {
-    const onGoingEventIds = (await prisma.event.findMany({
-        where: {
-            onGoing: true
-        }
-    })).map(event => event.id)
+    const onGoingEventIds = await getOnGoingEventIds()
 
     const updatedEventsOrNull = await Promise.all(onGoingEventIds.map(updateDescriptionOnEvent))
     const updatedEvent = updatedEventsOrNull.filter(event => event !== null) as Event[]
 
-    await prisma.log.create({
-        data: {
-            updated: Change.UPDATE_ONGOING,
-            changedEntries: updatedEvent.length
-        }
-    })
-
+    await insertLogEntry(Change.UPDATE_ONGOING, updatedEvent.length)
     console.log(`Updated ${updatedEvent.length} event descriptions.`)
 }
 
 async function updateOnGoingStatusForOldEvents () {
     const twoDaysAgoDate = new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 2)
+    const numberOfUpdatedOldOnGoingEvents = await updateStatusOnOldOnGoingEvents(twoDaysAgoDate)
 
-    const numberOfUpdatedOldOnGoingEvents = await prisma.event.updateMany({
-        where: {
-            onGoing: true,
-            createTime: {
-                lt: twoDaysAgoDate
-            }
-        },
-        data: {
-            onGoing: false
-        }
-    })
-
-    console.log(`Updated ${numberOfUpdatedOldOnGoingEvents.count} event onGoing status.`)
+    console.log(`Updated ${numberOfUpdatedOldOnGoingEvents} event onGoing status.`)
 }
 
 async function updateDescriptionOnEvent (eventId: Event['id']): Promise<Event | null> {
@@ -82,16 +46,7 @@ async function updateDescriptionOnEvent (eventId: Event['id']): Promise<Event | 
         return null
     }
 
-    // Update description
-    return await prisma.event.update({
-        where: {
-            id: eventId
-        },
-        data: {
-            description: spinEvent.besedilo,
-            onGoing: false
-        }
-    })
+    return await updateEvent(eventId, { description: spinEvent.besedilo, onGoing: false })
 }
 
 async function scrapeFromToId (startId: number, endId: number) {
@@ -104,13 +59,6 @@ async function scrapeFromToId (startId: number, endId: number) {
     const spinEvents = await fetchEvents(idsToFetch)
     const dbEvents = spinEvents.map(spinEvent => reponseToEventMap({ spinEvent, allMunicipalities, allEventTypes }))
     return insertEvents(dbEvents)
-}
-
-async function insertEvents (events: Event[]): Promise<number> {
-    const numberOfInsertedEvents = await prisma.event.createMany({
-        data: events
-    })
-    return numberOfInsertedEvents.count
 }
 
 function reponseToEventMap ({ spinEvent, allEventTypes, allMunicipalities } : { spinEvent: SpinEvent, allEventTypes: EventType[], allMunicipalities: Municipality[] }): Event {
