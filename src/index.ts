@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client'
 import type { Event } from '@prisma/client'
 import { query, check, validationResult, matchedData } from 'express-validator'
 import { stringArrayParameterToIntArray } from './utils'
+import { isUndefined } from 'lodash'
 
 dotenv.config()
 const hostname = process.env.HOST ?? 'localhost'
@@ -56,8 +57,8 @@ app.get('/eventsArchive', validationChain, async (req: Request, res: Response) =
         createTimeFrom,
         createTimeTo,
         order,
-        lat,
-        lon,
+        lat: latParam,
+        lon: lonParam,
         distance
     } = matchedData(req)
 
@@ -66,8 +67,19 @@ app.get('/eventsArchive', validationChain, async (req: Request, res: Response) =
 
     try {
         let eventsIdsMatchedByLocation: number[] | undefined
-        if (lat !== undefined && lon !== undefined && distance !== undefined) {
-            eventsIdsMatchedByLocation = (await prisma.$queryRaw<Pick<Event, 'id'>[]>`SELECT id FROM Event WHERE ST_Distance_Sphere(location, Point(${lon}, ${lat})) < ${distance}`).map(event => event.id)
+        if (
+            !isUndefined(latParam) &&
+            !isUndefined(lonParam) &&
+            !isUndefined(distance)
+        ) {
+            eventsIdsMatchedByLocation = (await prisma.$queryRaw<Pick<Event, 'id'>[]>`
+                SELECT id FROM Event
+                WHERE
+                ST_Contains( 
+                    ST_Buffer(Point(${latParam}, ${lonParam}), 0.015060 * ${distance}),
+                    Point(lat, lon)
+                );
+            `).map(event => event.id)
         }
 
         const events = await prisma.event.findMany({
