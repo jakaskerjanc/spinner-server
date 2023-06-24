@@ -24,7 +24,7 @@ app.get('/largeEvents', async (_req: Request, res: Response) => {
     res.send(data.value)
 })
 
-const validationChain = [
+const eventsArchiveValidationChain = [
     query('description', 'description length at least 3!').optional().isLength({ min: 3 }),
     query('title', 'title length at least 3!').optional().isLength({ min: 3 }),
     query('municipalityId').optional().isArray().toArray(),
@@ -32,16 +32,16 @@ const validationChain = [
     query('onGoing').optional().isBoolean().toBoolean(),
     query('createTimeFrom').optional().isDate().toDate(),
     query('createTimeTo').optional().isDate().toDate(),
-    query('count').optional().isNumeric().toInt(),
-    query('order').optional().isIn(['asc', 'desc']),
     query('lat').optional().isNumeric().toFloat(),
     query('lon').optional().isNumeric().toFloat(),
     query('distance').optional().isNumeric().toInt(),
+    query('order').optional().isIn(['asc', 'desc']),
     query('order').default('desc'),
+    query('count').optional().isNumeric().toInt(),
     query('count').default(20)
 ]
 
-app.get('/eventsArchive', validationChain, async (req: Request, res: Response) => {
+app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res: Response) => {
     const result = validationResult(req)
     if (!result.isEmpty()) {
         res.status(400).send({ errors: result.array() })
@@ -175,6 +175,52 @@ app.get('/eventTypes', async (_req: Request, res: Response) => {
             }
         })
         res.send(eventTypes)
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ error })
+    }
+})
+
+const largeEventsArchiveValidationChain = [
+    query('description', 'description length at least 3!').optional().isLength({ min: 3 }),
+    query('municipalityId').optional().isArray().toArray(),
+    query('createTimeFrom').optional().isDate().toDate(),
+    query('createTimeTo').optional().isDate().toDate(),
+    query('order').optional().isIn(['asc', 'desc']),
+    query('order').default('desc'),
+    query('count').optional().isNumeric().toInt(),
+    query('count').default(20)
+]
+
+app.get('/largeEventsArchive', largeEventsArchiveValidationChain, async (req: Request, res: Response) => {
+    const {
+        description,
+        municipalityId: municipalityIdStr,
+        count,
+        createTimeFrom,
+        createTimeTo,
+        order
+    } = matchedData(req)
+
+    const municipalityId = stringArrayParameterToIntArray(municipalityIdStr)
+
+    try {
+        const largeEvents = await prisma.largeEvent.findMany({
+            where: {
+                description: { search: description },
+                municipalityId: { in: municipalityId },
+                createTime: {
+                    lt: createTimeTo,
+                    gt: createTimeFrom
+                }
+            },
+            orderBy: [
+                { createTime: order },
+                { id: 'asc' }
+            ],
+            take: count
+        })
+        res.send(largeEvents)
     } catch (error) {
         console.log(error)
         res.status(500).send({ error })

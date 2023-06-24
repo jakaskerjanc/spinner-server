@@ -38,6 +38,7 @@ model LargeEvent {
 
   @@unique([createTime, municipalityId])
   @@index([municipalityId])
+  @@fulltext([description])
 }
 
 model EventType {
