@@ -4,8 +4,8 @@ import express, { type Request, type Response } from 'express'
 import { SpinEventsResponse, SpinLargeEventsResponse } from './types'
 import { PrismaClient } from '@prisma/client'
 import type { Event } from '@prisma/client'
-import { query, check, validationResult, matchedData } from 'express-validator'
-import { stringArrayParameterToIntArray } from './utils'
+import { query, check, matchedData } from 'express-validator'
+import { handleError, stringArrayParameterToIntArray, validateRequestParams } from './utils'
 import { isUndefined } from 'lodash'
 
 dotenv.config()
@@ -42,11 +42,7 @@ const eventsArchiveValidationChain = [
 ]
 
 app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res: Response) => {
-    const result = validationResult(req)
-    if (!result.isEmpty()) {
-        res.status(400).send({ errors: result.array() })
-        return
-    }
+    validateRequestParams(req, res)
     const {
         description,
         title,
@@ -121,19 +117,12 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
         })
         res.send(events)
     } catch (error) {
-        console.log(error)
-        res.status(500).send({ error })
+        handleError(error, res)
     }
 })
 
 app.get('/eventsArchive/:id', check('id').isNumeric().toInt(), async (req: Request, res: Response) => {
-    const result = validationResult(req)
-
-    if (!result.isEmpty()) {
-        res.send({ errors: result.array() })
-        return
-    }
-
+    validateRequestParams(req, res)
     const { id } = matchedData(req)
 
     try {
@@ -148,8 +137,7 @@ app.get('/eventsArchive/:id', check('id').isNumeric().toInt(), async (req: Reque
         })
         res.send(event)
     } catch (error) {
-        console.log(error)
-        res.status(500).send({ error })
+        handleError(error, res)
     }
 })
 
@@ -162,8 +150,7 @@ app.get('/municipalities', async (_req: Request, res: Response) => {
         })
         res.send(municipalities)
     } catch (error) {
-        console.log(error)
-        res.status(500).send({ error })
+        handleError(error, res)
     }
 })
 
@@ -176,8 +163,7 @@ app.get('/eventTypes', async (_req: Request, res: Response) => {
         })
         res.send(eventTypes)
     } catch (error) {
-        console.log(error)
-        res.status(500).send({ error })
+        handleError(error, res)
     }
 })
 
@@ -193,6 +179,7 @@ const largeEventsArchiveValidationChain = [
 ]
 
 app.get('/largeEventsArchive', largeEventsArchiveValidationChain, async (req: Request, res: Response) => {
+    validateRequestParams(req, res)
     const {
         description,
         municipalityId: municipalityIdStr,
@@ -222,11 +209,10 @@ app.get('/largeEventsArchive', largeEventsArchiveValidationChain, async (req: Re
         })
         res.send(largeEvents)
     } catch (error) {
-        console.log(error)
-        res.status(500).send({ error })
+        handleError(error, res)
     }
 })
 
 app.listen(port, () => {
-    console.log(`Example app listening on port http://${hostname}:${port}`)
+    console.log(`Spinner server listening on port http://${hostname}:${port}`)
 })
