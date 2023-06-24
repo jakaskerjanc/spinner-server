@@ -1,12 +1,12 @@
 import axios from 'axios'
 import * as dotenv from 'dotenv'
 import express, { type Request, type Response } from 'express'
-import { SpinEventsResponse, SpinLargeEventsResponse } from './types'
 import { PrismaClient } from '@prisma/client'
 import type { Event } from '@prisma/client'
 import { query, check, matchedData } from 'express-validator'
 import { handleError, stringArrayParameterToIntArray, validateRequestParams } from './utils'
 import { isUndefined } from 'lodash'
+import { SpinEventsResponse, SpinLargeEventsResponse } from './scrapper/types'
 
 dotenv.config()
 const hostname = process.env.HOST ?? 'localhost'

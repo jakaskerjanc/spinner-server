@@ -1,7 +1,7 @@
 
 import axios from 'axios'
 import Parser from 'rss-parser'
-import { SpinEventResponse, SpinEvent, SpinLargeEventsResponse, SpinLargeEvent } from '../types'
+import { SpinEventResponse, SpinEvent, SpinLargeEventsResponse, SpinLargeEvent } from './types'
 import { last } from 'lodash'
 
 type CustomItem = { link: string }

@@ -1,6 +1,6 @@
 import { Change, Prisma } from '@prisma/client'
 import { max, trim } from 'lodash'
-import { SpinEvent, SpinLargeEvent } from '../types'
+import { SpinEvent, SpinLargeEvent } from './types'
 import type { Event, Municipality, EventType } from '@prisma/client'
 import { fetchEvent, fetchEvents, fetchLargeEvents, fetchRssEventIds } from './eventFetch'
 import { findLastInsertedEvent, getAllEventTypes, getAllMunicipalities, getOnGoingEventIds, insertEvents, insertLargeEvents, insertLogEntry, updateEvent, updateStatusOnOldOnGoingEvents } from './databaseHandler'
