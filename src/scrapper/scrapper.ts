@@ -1,9 +1,9 @@
-import { Change } from '@prisma/client'
-import { max } from 'lodash'
-import { SpinEvent } from '../types'
+import { Change, Prisma } from '@prisma/client'
+import { max, trim } from 'lodash'
+import { SpinEvent, SpinLargeEvent } from '../types'
 import type { Event, Municipality, EventType } from '@prisma/client'
-import { fetchEvent, fetchEvents, fetchRssEventIds } from './eventFetch'
-import { findLastInsertedEvent, getAllEventTypes, getAllMunicipalities, getOnGoingEventIds, insertEvents, insertLogEntry, updateEvent, updateStatusOnOldOnGoingEvents } from './databaseHandler'
+import { fetchEvent, fetchEvents, fetchLargeEvents, fetchRssEventIds } from './eventFetch'
+import { findLastInsertedEvent, getAllEventTypes, getAllMunicipalities, getOnGoingEventIds, insertEvents, insertLargeEvents, insertLogEntry, updateEvent, updateStatusOnOldOnGoingEvents } from './databaseHandler'
 
 async function scrapeLatest () {
     const spinEventIds = await fetchRssEventIds()
@@ -61,6 +61,19 @@ async function scrapeFromToId (startId: number, endId: number) {
     return insertEvents(dbEvents)
 }
 
+async function scrapeLargeEvents (): Promise<void> {
+    const spinLargeEvents = await fetchLargeEvents()
+    if (spinLargeEvents.length === 0) {
+        return
+    }
+
+    const allMunicipalities = await getAllMunicipalities()
+    const largeEventsCreateData = spinLargeEvents.map(event => spinLargeEventToLargeEventMap(event, allMunicipalities))
+
+    const nOfInserted = await insertLargeEvents(largeEventsCreateData)
+    console.log(`Inserted ${nOfInserted} large events.`)
+}
+
 function reponseToEventMap ({ spinEvent, allEventTypes, allMunicipalities } : { spinEvent: SpinEvent, allEventTypes: EventType[], allMunicipalities: Municipality[] }): Event {
     const municipalityId = allMunicipalities.find(m => m.name === spinEvent.obcinaNaziv)?.id
     const eventTypeId = allEventTypes.find(e => e.name === spinEvent.intervencijaVrstaNaziv)?.id
@@ -80,14 +93,30 @@ function reponseToEventMap ({ spinEvent, allEventTypes, allMunicipalities } : { 
         lon: spinEvent.wgsLon,
         createTime: new Date(spinEvent.nastanekCas),
         reportTime: new Date(spinEvent.prijavaCas),
-        description: spinEvent.besedilo ? spinEvent.besedilo : null,
+        description: spinEvent.besedilo ? trim(spinEvent.besedilo) : null,
         title: spinEvent.dogodekNaziv ? spinEvent.dogodekNaziv : null,
         onGoing: spinEvent.ikona === 0
     }
 }
 
+function spinLargeEventToLargeEventMap (spinLargeEvent: SpinLargeEvent, allMunicipalities: Municipality[]): Prisma.LargeEventUncheckedCreateInput {
+    const municipalityId = allMunicipalities.find(m => m.MID === spinLargeEvent.obcinaMID)?.id
+    if (!municipalityId) {
+        throw new Error(`Municipality ${spinLargeEvent.obcinaNaziv} not found`)
+    }
+
+    const description = trim(spinLargeEvent.besediloList.map(besedilo => besedilo.besedilo).join('\n'))
+
+    return {
+        createTime: new Date(spinLargeEvent.besediloList[0].datum),
+        description,
+        municipalityId
+    }
+}
+
 module.exports = {
     scrapeLatest,
+    scrapeLatestLargeEvents: scrapeLargeEvents,
     updateOnGoingDescriptions,
     updateOnGoingStatusForOldEvents
 }

@@ -36,6 +36,7 @@ model LargeEvent {
   municipalityId Int
   municipality   Municipality @relation(fields: [municipalityId], references: [id])
 
+  @@unique([createTime, municipalityId])
   @@index([municipalityId])
 }
 

@@ -9,10 +9,11 @@
     "dev": "nodemon --exec ts-node src/index.ts",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
+    "lint:prisma": "prisma format",
     "type-check": "tsc --project tsconfig.json --pretty --noEmit",
     "scrapper:fetch": "node dist/scrapper/scrapper.js scrapeLatest",
     "scrapper:updateOnGoing": "node dist/scrapper/scrapper.js updateOnGoingDescriptions",
-    "lint:prisma": "prisma format",
+    "scrapper:fetchLargeEvents": "node dist/scrapper/scrapper.js scrapeLatestLargeEvents",
     "connect:main": "pscale connect spinner-db main --port 3309",
     "connect:dev": "pscale connect spinner-db dev --port 3309"
   },

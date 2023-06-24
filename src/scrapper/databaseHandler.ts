@@ -1,4 +1,4 @@
-import { PrismaClient, Municipality, EventType, Change, Event } from '@prisma/client'
+import { PrismaClient, Municipality, EventType, Change, Event, Prisma } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -71,4 +71,12 @@ export async function getOnGoingEventIds (): Promise<Event['id'][]> {
             onGoing: true
         }
     })).map(event => event.id)
+}
+
+export async function insertLargeEvents (largeEvents: Prisma.LargeEventUncheckedCreateInput[]): Promise<number> {
+    const numberOfInsertedEvents = await prisma.largeEvent.createMany({
+        data: largeEvents,
+        skipDuplicates: true
+    })
+    return numberOfInsertedEvents.count
 }

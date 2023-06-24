@@ -1,4 +1,4 @@
-type SpinLargeEvent = {
+export type SpinLargeEvent = {
   obcinaMID: number
   obcinaNaziv: string
   besediloList: Array<{

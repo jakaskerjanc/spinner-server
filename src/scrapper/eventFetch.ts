@@ -1,7 +1,7 @@
 
 import axios from 'axios'
 import Parser from 'rss-parser'
-import { SpinEventResponse, SpinEvent } from '../types'
+import { SpinEventResponse, SpinEvent, SpinLargeEventsResponse, SpinLargeEvent } from '../types'
 import { last } from 'lodash'
 
 type CustomItem = { link: string }
@@ -34,4 +34,9 @@ export async function fetchEvent (id: number): Promise<SpinEvent | null> {
             ...data.value
         }
         : null
+}
+
+export async function fetchLargeEvents (): Promise<SpinLargeEvent[]> {
+    const { data } = await axios.get<SpinLargeEventsResponse>('https://spin3.sos112.si/javno/assets/data/vecjiObseg.json')
+    return data.value
 }
