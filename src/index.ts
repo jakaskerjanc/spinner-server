@@ -201,6 +201,14 @@ app.get('/largeEventsArchive', largeEventsArchiveValidationChain, async (req: Re
                     gt: createTimeFrom
                 }
             },
+            select: {
+                municipality: {
+                    select: {
+                        name: true,
+                        id: true
+                    }
+                }
+            },
             orderBy: [
                 { createTime: order },
                 { id: 'asc' }

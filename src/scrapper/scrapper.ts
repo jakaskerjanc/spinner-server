@@ -5,7 +5,11 @@ import type { Event, Municipality, EventType } from '@prisma/client'
 import { fetchEvent, fetchEvents, fetchLargeEvents, fetchRssEventIds } from './eventFetch'
 import { findLastInsertedEvent, getAllEventTypes, getAllMunicipalities, getOnGoingEventIds, insertEvents, insertLargeEvents, insertLogEntry, updateEvent, updateStatusOnOldOnGoingEvents } from './databaseHandler'
 
+let allMunicipalities: Municipality[] = []
+let allEventTypes: EventType[] = []
+
 async function scrapeLatest () {
+    console.log('Scraping latest events.')
     const spinEventIds = await fetchRssEventIds()
 
     const lastSpinEventId = max(spinEventIds)
@@ -15,6 +19,10 @@ async function scrapeLatest () {
         throw new Error('No events found')
     }
 
+    if (lastInsertedEventId === lastSpinEventId) {
+        return
+    }
+
     const nOfInserted = await scrapeFromToId(lastInsertedEventId + 1, lastSpinEventId)
     await insertLogEntry(Change.FETCH_LATEST, nOfInserted)
 
@@ -22,20 +30,25 @@ async function scrapeLatest () {
 }
 
 async function updateOnGoingDescriptions () {
+    console.log('Updating on going events descriptions.')
     const onGoingEventIds = await getOnGoingEventIds()
 
     const updatedEventsOrNull = await Promise.all(onGoingEventIds.map(updateDescriptionOnEvent))
-    const updatedEvent = updatedEventsOrNull.filter(event => event !== null) as Event[]
+    const updatedEvents = updatedEventsOrNull.filter(event => event !== null) as Event[]
 
-    await insertLogEntry(Change.UPDATE_ONGOING, updatedEvent.length)
-    console.log(`Updated ${updatedEvent.length} event descriptions.`)
+    if (updatedEvents.length === 0) {
+        return
+    }
+
+    await insertLogEntry(Change.UPDATE_ONGOING, updatedEvents.length)
+    console.log(`Updated ${updatedEvents.length} on going event descriptions.`)
 }
 
 async function updateOnGoingStatusForOldEvents () {
     const twoDaysAgoDate = new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 2)
     const numberOfUpdatedOldOnGoingEvents = await updateStatusOnOldOnGoingEvents(twoDaysAgoDate)
 
-    console.log(`Updated ${numberOfUpdatedOldOnGoingEvents} event onGoing status.`)
+    console.log(`Updated ${numberOfUpdatedOldOnGoingEvents} events on going status.`)
 }
 
 async function updateDescriptionOnEvent (eventId: Event['id']): Promise<Event | null> {
@@ -53,9 +66,6 @@ async function scrapeFromToId (startId: number, endId: number) {
     const diff = (endId + 1) - startId
     const idsToFetch = Array.from({ length: diff }, (_, i) => i + startId)
 
-    const allMunicipalities = await getAllMunicipalities()
-    const allEventTypes = await getAllEventTypes()
-
     const spinEvents = await fetchEvents(idsToFetch)
     const dbEvents = spinEvents.map(spinEvent => reponseToEventMap({ spinEvent, allMunicipalities, allEventTypes }))
     return insertEvents(dbEvents)
@@ -67,7 +77,6 @@ async function scrapeLargeEvents (): Promise<void> {
         return
     }
 
-    const allMunicipalities = await getAllMunicipalities()
     const largeEventsCreateData = spinLargeEvents.map(event => spinLargeEventToLargeEventMap(event, allMunicipalities))
 
     const nOfInserted = await insertLargeEvents(largeEventsCreateData)
@@ -114,11 +123,37 @@ function spinLargeEventToLargeEventMap (spinLargeEvent: SpinLargeEvent, allMunic
     }
 }
 
-module.exports = {
-    scrapeLatest,
-    scrapeLatestLargeEvents: scrapeLargeEvents,
-    updateOnGoingDescriptions,
-    updateOnGoingStatusForOldEvents
+async function preFetch () {
+    allMunicipalities = await getAllMunicipalities()
+    allEventTypes = await getAllEventTypes()
 }
 
-require('make-runnable')
+async function scrapeLatestLooped () {
+    await scrapeLatest()
+    setTimeout(scrapeLatestLooped, 10000)
+}
+
+async function scrapeLargeEventsLooped () {
+    await scrapeLargeEvents()
+    setTimeout(scrapeLargeEventsLooped, 60000)
+}
+
+async function updateOnGoingDescriptionsLooped () {
+    await updateOnGoingDescriptions()
+    setTimeout(updateOnGoingDescriptionsLooped, 60000)
+}
+
+async function updateOnGoingStatusForOldEventsLooped () {
+    await updateOnGoingStatusForOldEvents()
+    setTimeout(updateOnGoingStatusForOldEventsLooped, 86400000) // 24h
+}
+
+async function main () {
+    await preFetch()
+    scrapeLatestLooped()
+    scrapeLargeEventsLooped()
+    updateOnGoingDescriptionsLooped()
+    updateOnGoingStatusForOldEventsLooped()
+}
+
+main()

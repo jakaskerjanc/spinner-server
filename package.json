@@ -11,9 +11,7 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "lint:prisma": "prisma format",
     "type-check": "tsc --project tsconfig.json --pretty --noEmit",
-    "scrapper:fetch": "node dist/scrapper/scrapper.js scrapeLatest",
-    "scrapper:updateOnGoing": "node dist/scrapper/scrapper.js updateOnGoingDescriptions",
-    "scrapper:fetchLargeEvents": "node dist/scrapper/scrapper.js scrapeLatestLargeEvents",
+    "start:scrapper": "node dist/scrapper/scrapper.js",
     "connect:main": "pscale connect spinner-db main --port 3309",
     "connect:dev": "pscale connect spinner-db dev --port 3309"
   },
@@ -24,7 +22,6 @@
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
     "lodash": "^4.17.21",
-    "make-runnable": "^1.4.1",
     "rss-parser": "^3.12.0"
   },
   "devDependencies": {
