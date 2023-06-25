@@ -34,7 +34,9 @@ const eventsArchiveValidationChain = [
     query('createTimeTo').optional().isDate().toDate(),
     query('lat').optional().isNumeric().toFloat(),
     query('lon').optional().isNumeric().toFloat(),
-    query('distance').optional().isNumeric().toInt(),
+    query('distance').optional().isNumeric().toFloat(),
+    query('orderBy').optional().isIn(['date', 'distance']),
+    query('orderBy').default('date'),
     query('order').optional().isIn(['asc', 'desc']),
     query('order').default('desc'),
     query('count').optional().isNumeric().toInt(),
@@ -55,14 +57,15 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
         order,
         lat: latParam,
         lon: lonParam,
-        distance
+        distance,
+        orderBy
     } = matchedData(req)
 
     const municipalityId = stringArrayParameterToIntArray(municipalityIdStr)
     const eventTypeId = stringArrayParameterToIntArray(eventTypeIdInt)
 
     try {
-        let eventsIdsMatchedByLocation: number[] | undefined
+        let eventsIdsMatchedByLocation: number[] = []
         if (
             !isUndefined(latParam) &&
             !isUndefined(lonParam) &&
@@ -74,7 +77,9 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
                 ST_Contains( 
                     ST_Buffer(Point(${latParam}, ${lonParam}), 0.015060 * ${distance}),
                     Point(lat, lon)
-                );
+                )
+                ORDER BY ST_Distance(Point(${latParam}, ${lonParam}), Point(lat, lon)) ASC
+                LIMIT ${count};
             `).map(event => event.id)
         }
 
@@ -90,11 +95,11 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
                     gt: createTimeFrom
                 },
                 id: {
-                    in: eventsIdsMatchedByLocation
+                    in: eventsIdsMatchedByLocation.length ? eventsIdsMatchedByLocation : undefined
                 }
             },
             orderBy: {
-                createTime: order
+                createTime: orderBy === 'date' ? order : undefined
             },
             select: {
                 id: true,
@@ -117,6 +122,13 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
             },
             take: count
         })
+
+        if (orderBy === 'distance') {
+            const sortedEventsByLocation = events.sort((a, b) => eventsIdsMatchedByLocation.indexOf(a.id) - eventsIdsMatchedByLocation.indexOf(b.id))
+            res.send(sortedEventsByLocation)
+            return
+        }
+
         res.send(events)
     } catch (error) {
         handleError(error, res)
