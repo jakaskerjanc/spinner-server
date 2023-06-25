@@ -9,7 +9,7 @@ let allMunicipalities: Municipality[] = []
 let allEventTypes: EventType[] = []
 
 async function scrapeLatest () {
-    console.log('Scraping latest events.')
+    console.log('[Events]: Scraping latest events')
     const spinEventIds = await fetchRssEventIds()
 
     const lastSpinEventId = max(spinEventIds)
@@ -26,11 +26,11 @@ async function scrapeLatest () {
     const nOfInserted = await scrapeFromToId(lastInsertedEventId + 1, lastSpinEventId)
     await insertLogEntry(Change.FETCH_LATEST, nOfInserted)
 
-    console.log(`Inserted ${nOfInserted} events.`)
+    console.log(`[Events]: Inserted ${nOfInserted} events`)
 }
 
 async function updateOnGoingDescriptions () {
-    console.log('Updating on going events descriptions.')
+    console.log('[Events descriptions]: Updating on going events descriptions')
     const onGoingEventIds = await getOnGoingEventIds()
 
     const updatedEventsOrNull = await Promise.all(onGoingEventIds.map(updateDescriptionOnEvent))
@@ -41,14 +41,14 @@ async function updateOnGoingDescriptions () {
     }
 
     await insertLogEntry(Change.UPDATE_ONGOING, updatedEvents.length)
-    console.log(`Updated ${updatedEvents.length} on going event descriptions.`)
+    console.log(`[Descriptions]: Updated ${updatedEvents.length} on going event descriptions`)
 }
 
 async function updateOnGoingStatusForOldEvents () {
     const twoDaysAgoDate = new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 2)
     const numberOfUpdatedOldOnGoingEvents = await updateStatusOnOldOnGoingEvents(twoDaysAgoDate)
 
-    console.log(`Updated ${numberOfUpdatedOldOnGoingEvents} events on going status.`)
+    console.log(`[OnGoing status]: Updated ${numberOfUpdatedOldOnGoingEvents} events on going status`)
 }
 
 async function updateDescriptionOnEvent (eventId: Event['id']): Promise<Event | null> {
@@ -80,7 +80,7 @@ async function scrapeLargeEvents (): Promise<void> {
     const largeEventsCreateData = spinLargeEvents.map(event => spinLargeEventToLargeEventMap(event, allMunicipalities))
 
     const nOfInserted = await insertLargeEvents(largeEventsCreateData)
-    console.log(`Inserted ${nOfInserted} large events.`)
+    console.log(`[Large events]: Inserted ${nOfInserted} large events`)
 }
 
 function reponseToEventMap ({ spinEvent, allEventTypes, allMunicipalities } : { spinEvent: SpinEvent, allEventTypes: EventType[], allMunicipalities: Municipality[] }): Event {
