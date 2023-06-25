@@ -102,6 +102,8 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
                 description: true,
                 createTime: true,
                 onGoing: true,
+                lat: true,
+                lon: true,
                 eventType: {
                     select: {
                         name: true
@@ -202,6 +204,9 @@ app.get('/largeEventsArchive', largeEventsArchiveValidationChain, async (req: Re
                 }
             },
             select: {
+                id: true,
+                description: true,
+                createTime: true,
                 municipality: {
                     select: {
                         name: true,
