@@ -18,13 +18,14 @@ model Event {
   reportTime     DateTime
   municipalityId Int
   title          String?
-  onGoing        Boolean?
+  onGoing        Boolean
   eventTypeId    Int
   municipality   Municipality @relation(fields: [municipalityId], references: [id])
   eventType      EventType    @relation(fields: [eventTypeId], references: [id])
 
   @@index([eventTypeId])
   @@index([municipalityId])
+  @@index([onGoing])
   @@fulltext([description])
   @@fulltext([title])
 }
