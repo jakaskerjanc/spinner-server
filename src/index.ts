@@ -44,7 +44,9 @@ const eventsArchiveValidationChain = [
     query('order').optional().isIn(['asc', 'desc']),
     query('order').default('desc'),
     query('count').optional().isNumeric().toInt(),
-    query('count').default(20)
+    query('count').default(20),
+    query('includeWithoutDescription').optional().isBoolean().toBoolean(),
+    query('includeWithoutDescription').default(false)
 ]
 
 app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res: Response) => {
@@ -65,7 +67,8 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
         lat: latParam,
         lon: lonParam,
         distance,
-        orderBy
+        orderBy,
+        includeWithoutDescription
     } = matchedData(req)
 
     const municipalityId = stringArrayParameterToIntArray(municipalityIdStr)
@@ -92,7 +95,10 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
 
         const events = await prisma.event.findMany({
             where: {
-                description: { search: description },
+                description: {
+                    not: includeWithoutDescription ? undefined : null,
+                    search: description
+                },
                 title: { search: title },
                 municipalityId: { in: municipalityId },
                 eventTypeId: { in: eventTypeId },
