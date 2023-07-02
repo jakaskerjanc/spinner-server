@@ -72,6 +72,7 @@ async function scrapeFromToId (startId: number, endId: number) {
 }
 
 async function scrapeLargeEvents (): Promise<void> {
+    console.log('[Large events]: Scraping latests large events')
     const spinLargeEvents = await fetchLargeEvents()
     if (spinLargeEvents.length === 0) {
         return
@@ -150,10 +151,11 @@ async function updateOnGoingStatusForOldEventsLooped () {
 
 async function main () {
     await preFetch()
+    await updateOnGoingDescriptions() // Ensure we try to update descriptions first
     scrapeLatestLooped()
     scrapeLargeEventsLooped()
-    updateOnGoingDescriptionsLooped()
     updateOnGoingStatusForOldEventsLooped()
+    updateOnGoingDescriptionsLooped()
 }
 
 main()
