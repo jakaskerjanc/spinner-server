@@ -10,11 +10,14 @@ export function stringArrayParameterToIntArray (stringArray: string[] | undefine
     })
 }
 
-export function validateRequestParams (req: e.Request, res: e.Response) {
+export function validateRequestParams (req: e.Request, res: e.Response): boolean {
     const result = validationResult(req)
     if (!result.isEmpty()) {
         res.status(400).send({ errors: result.array() })
+        return false
     }
+
+    return true
 }
 
 export function handleError (error: unknown, res: e.Response) {

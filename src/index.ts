@@ -7,12 +7,16 @@ import { query, check, matchedData } from 'express-validator'
 import { handleError, stringArrayParameterToIntArray, validateRequestParams } from './utils'
 import { isUndefined } from 'lodash'
 import { SpinEventsResponse, SpinLargeEventsResponse } from './scrapper/types'
+import cors from 'cors'
 
 dotenv.config()
 const hostname = process.env.HOST ?? 'localhost'
 const port = process.env.PORT ?? 3000
-const app = express()
+
 const prisma = new PrismaClient()
+
+const app = express()
+app.use(cors())
 
 app.get('/events', async (_req: Request, res: Response) => {
     const { data } = await axios.get<SpinEventsResponse>('https://spin3.sos112.si/javno/assets/data/lokacija.json')
@@ -44,7 +48,10 @@ const eventsArchiveValidationChain = [
 ]
 
 app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res: Response) => {
-    validateRequestParams(req, res)
+    const paramsValid = validateRequestParams(req, res)
+    if (!paramsValid) {
+        return
+    }
     const {
         description,
         title,
@@ -111,19 +118,21 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
                 lon: true,
                 eventType: {
                     select: {
-                        name: true
+                        name: true,
+                        id: true
                     }
                 },
                 municipality: {
                     select: {
-                        name: true
+                        name: true,
+                        id: true
                     }
                 }
             },
             take: count
         })
 
-        if (orderBy === 'distance') {
+        if (orderBy === 'distance' && eventsIdsMatchedByLocation.length) {
             const sortedEventsByLocation = events.sort((a, b) => eventsIdsMatchedByLocation.indexOf(a.id) - eventsIdsMatchedByLocation.indexOf(b.id))
             res.send(sortedEventsByLocation)
             return
@@ -136,7 +145,10 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
 })
 
 app.get('/eventsArchive/:id', check('id').isNumeric().toInt(), async (req: Request, res: Response) => {
-    validateRequestParams(req, res)
+    const paramsValid = validateRequestParams(req, res)
+    if (!paramsValid) {
+        return
+    }
     const { id } = matchedData(req)
 
     try {
@@ -193,7 +205,10 @@ const largeEventsArchiveValidationChain = [
 ]
 
 app.get('/largeEventsArchive', largeEventsArchiveValidationChain, async (req: Request, res: Response) => {
-    validateRequestParams(req, res)
+    const paramsValid = validateRequestParams(req, res)
+    if (!paramsValid) {
+        return
+    }
     const {
         description,
         municipalityId: municipalityIdStr,
