@@ -1,10 +1,10 @@
 import axios from 'axios'
 import * as dotenv from 'dotenv'
 import express, { type Request, type Response } from 'express'
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import type { Event } from '@prisma/client'
 import { query, check, matchedData } from 'express-validator'
-import { handleError, stringArrayParameterToIntArray, validateRequestParams } from './utils'
+import { getBoundingBoxAsArray, handleError, stringArrayParameterToIntArray, validateRequestParams } from './utils'
 import { isUndefined } from 'lodash'
 import { SpinEventsResponse, SpinLargeEventsResponse } from './scrapper/types'
 import cors from 'cors'
@@ -81,19 +81,22 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
             !isUndefined(lonParam) &&
             !isUndefined(distance)
         ) {
+            const { latArr, lonArr } = getBoundingBoxAsArray(latParam, lonParam, distance)
+
             eventsIdsMatchedByLocation = (await prisma.$queryRaw<Pick<Event, 'id'>[]>`
                 SELECT id FROM Event
                 WHERE
-                ST_Contains( 
-                    ST_Buffer(Point(${latParam}, ${lonParam}), 0.015060 * ${distance}),
-                    Point(lat, lon)
-                )
-                ORDER BY ST_Distance(Point(${latParam}, ${lonParam}), Point(lat, lon)) ASC
-                LIMIT ${count};
+                lat in (${Prisma.join(latArr)})
+                AND
+                lon in (${Prisma.join(lonArr)})
+                AND
+                ST_Distance(POINT(${latParam}, ${lonParam}), Point(lat / 1000, lon / 1000)) <= ${distance} * 0.0015
+                ORDER BY 
+                ST_Distance(Point(${latParam}, ${lonParam}), Point(lat / 1000, lon / 1000)) ASC;
             `).map(event => event.id)
         }
 
-        const events = await prisma.event.findMany({
+        let events = await prisma.event.findMany({
             where: {
                 description: {
                     not: includeWithoutDescription ? undefined : null,
@@ -135,13 +138,18 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
                     }
                 }
             },
-            take: count
+            take: orderBy === 'distance' ? undefined : count
         })
 
+        events = events.map(event => ({
+            ...event,
+            lat: event.lat / 1000,
+            lon: event.lon / 1000
+        }))
+
         if (orderBy === 'distance' && eventsIdsMatchedByLocation.length) {
-            const sortedEventsByLocation = events.sort((a, b) => eventsIdsMatchedByLocation.indexOf(a.id) - eventsIdsMatchedByLocation.indexOf(b.id))
-            res.send(sortedEventsByLocation)
-            return
+            events = events.sort((a, b) => eventsIdsMatchedByLocation.indexOf(a.id) - eventsIdsMatchedByLocation.indexOf(b.id))
+            events = events.slice(0, count)
         }
 
         res.send(events)

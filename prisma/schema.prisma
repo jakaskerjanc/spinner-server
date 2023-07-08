@@ -11,8 +11,8 @@ datasource db {
 
 model Event {
   id             Int          @id
-  lat            Float
-  lon            Float
+  lat            Int
+  lon            Int
   description    String?      @db.VarChar(2048)
   createTime     DateTime
   reportTime     DateTime
@@ -26,6 +26,7 @@ model Event {
   @@index([eventTypeId])
   @@index([municipalityId])
   @@index([onGoing])
+  @@index([lat, lon])
   @@fulltext([description])
   @@fulltext([title])
 }
