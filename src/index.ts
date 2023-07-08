@@ -33,7 +33,7 @@ const eventsArchiveValidationChain = [
     query('title', 'title length at least 3!').optional().isLength({ min: 3 }),
     query('municipalityId').optional().isArray().toArray(),
     query('eventTypeId').optional().isArray().toArray(),
-    query('onGoing').optional().isBoolean().toBoolean(),
+    query('includeOnGoing').optional().isBoolean().toBoolean(),
     query('createTimeFrom').optional().isDate().toDate(),
     query('createTimeTo').optional().isDate().toDate(),
     query('lat').optional().isNumeric().toFloat(),
@@ -60,7 +60,7 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
         municipalityId: municipalityIdStr,
         eventTypeId: eventTypeIdInt,
         count,
-        onGoing,
+        includeOnGoing,
         createTimeFrom,
         createTimeTo,
         order,
@@ -105,7 +105,7 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
                 title: { search: title },
                 municipalityId: { in: municipalityId },
                 eventTypeId: { in: eventTypeId },
-                onGoing,
+                onGoing: includeOnGoing ? undefined : false,
                 createTime: {
                     lt: createTimeTo,
                     gt: createTimeFrom
