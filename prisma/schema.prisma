@@ -26,6 +26,7 @@ model Event {
   @@index([eventTypeId])
   @@index([municipalityId])
   @@index([onGoing])
+  @@index([createTime])
   @@index([lat, lon])
   @@fulltext([description])
   @@fulltext([title])

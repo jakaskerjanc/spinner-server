@@ -107,7 +107,7 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
                 eventTypeId: { in: eventTypeId },
                 onGoing: includeOnGoing ? undefined : false,
                 createTime: {
-                    lt: createTimeTo,
+                    lt: createTimeTo ? new Date(createTimeTo.setDate(createTimeTo.getDate() + 1)) : undefined,
                     gt: createTimeFrom
                 },
                 id: {
