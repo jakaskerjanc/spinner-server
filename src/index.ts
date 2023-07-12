@@ -148,7 +148,7 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
         }))
 
         if (orderBy === 'distance' && eventsIdsMatchedByLocation.length) {
-            events = events.sort((a, b) => eventsIdsMatchedByLocation.indexOf(a.id) - eventsIdsMatchedByLocation.indexOf(b.id))
+            events.sort((a, b) => eventsIdsMatchedByLocation.indexOf(a.id) - eventsIdsMatchedByLocation.indexOf(b.id))
             events = events.slice(0, count)
         }
 
@@ -251,7 +251,8 @@ app.get('/largeEventsArchive', largeEventsArchiveValidationChain, async (req: Re
                 municipality: {
                     select: {
                         name: true,
-                        id: true
+                        id: true,
+                        MID: true
                     }
                 }
             },
