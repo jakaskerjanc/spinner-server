@@ -3,11 +3,12 @@ import * as dotenv from 'dotenv'
 import express, { type Request, type Response } from 'express'
 import { Prisma, PrismaClient } from '@prisma/client'
 import type { Event } from '@prisma/client'
-import { query, check, matchedData } from 'express-validator'
+import { query, check, matchedData, body } from 'express-validator'
 import { getBoundingBoxAsArray, handleError, stringArrayParameterToIntArray, validateRequestParams } from './utils'
 import { isUndefined } from 'lodash'
 import { SpinEventsResponse, SpinLargeEventsResponse } from './scrapper/types'
 import cors from 'cors'
+import bodyParser from 'body-parser'
 
 dotenv.config()
 const hostname = process.env.HOST ?? 'localhost'
@@ -16,6 +17,7 @@ const port = process.env.PORT ?? 3000
 const prisma = new PrismaClient()
 
 const app = express()
+app.use(bodyParser.urlencoded({ extended: true }))
 app.use(cors())
 
 app.get('/events', async (_req: Request, res: Response) => {
@@ -266,6 +268,39 @@ app.get('/largeEventsArchive', largeEventsArchiveValidationChain, async (req: Re
     } catch (error) {
         handleError(error, res)
     }
+})
+
+const subscribeToNotificationsValidationChain = [
+    body('gcmToken').notEmpty()
+    // body('municipalityIds').optional().isArray().toArray(),
+    // body('eventTypeIds').optional().isArray().toArray()
+]
+
+app.post('/subscribeToNotifications', subscribeToNotificationsValidationChain, async (req: Request, res: Response) => {
+    const paramsValid = validateRequestParams(req, res)
+    if (!paramsValid) {
+        return
+    }
+    const {
+        // municipalityIds: municipalityIdStr,
+        // eventTypeIds: eventTypeIdInt,
+        gcmToken
+    } = matchedData(req)
+
+    // const municipalityIds = stringArrayParameterToIntArray(municipalityIdStr)
+    // const eventTypeIds = stringArrayParameterToIntArray(eventTypeIdInt)
+
+    try {
+        await prisma.subscriptions.create({
+            data: {
+                gcmToken
+            }
+        })
+    } catch (error) {
+        handleError(error, res)
+    }
+
+    res.send()
 })
 
 app.listen(port, () => {

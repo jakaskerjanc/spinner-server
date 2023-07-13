@@ -45,9 +45,10 @@ model LargeEvent {
 }
 
 model EventType {
-  name  String  @unique
-  id    Int     @id
-  Event Event[]
+  name          String          @unique
+  id            Int             @id
+  Event         Event[]
+  subscriptions Subscriptions[]
 }
 
 model Municipality {
@@ -57,6 +58,7 @@ model Municipality {
   outlinePolygon Unsupported("polygon")
   events         Event[]
   largeEvents    LargeEvent[]
+  subscriptions  Subscriptions[]
 }
 
 model Log {
@@ -64,6 +66,18 @@ model Log {
   logTime        DateTime @default(now())
   changedEntries Int
   updated        Change
+}
+
+model Subscriptions {
+  id             Int           @id @default(autoincrement())
+  gcmToken       String
+  municipalityId Int?
+  municipality   Municipality? @relation(fields: [municipalityId], references: [id])
+  eventTypeId    Int?
+  eventType      EventType?    @relation(fields: [eventTypeId], references: [id])
+
+  @@index([municipalityId])
+  @@index([eventTypeId])
 }
 
 enum Change {
