@@ -17,7 +17,7 @@ const port = process.env.PORT ?? 3000
 const prisma = new PrismaClient()
 
 const app = express()
-app.use(bodyParser.urlencoded({ extended: true }))
+app.use(bodyParser.json())
 app.use(cors())
 
 app.get('/events', async (_req: Request, res: Response) => {
@@ -271,9 +271,9 @@ app.get('/largeEventsArchive', largeEventsArchiveValidationChain, async (req: Re
 })
 
 const subscribeToNotificationsValidationChain = [
-    body('gcmToken').notEmpty()
-    // body('municipalityIds').optional().isArray().toArray(),
-    // body('eventTypeIds').optional().isArray().toArray()
+    body('gcmToken').notEmpty(),
+    body('municipalityIds').optional().isArray().toArray(),
+    body('eventTypeIds').optional().isArray().toArray()
 ]
 
 app.post('/subscribeToNotifications', subscribeToNotificationsValidationChain, async (req: Request, res: Response) => {
@@ -282,20 +282,40 @@ app.post('/subscribeToNotifications', subscribeToNotificationsValidationChain, a
         return
     }
     const {
-        // municipalityIds: municipalityIdStr,
-        // eventTypeIds: eventTypeIdInt,
+        municipalityIds: municipalityIdStr,
+        eventTypeIds: eventTypeIdInt,
         gcmToken
     } = matchedData(req)
 
-    // const municipalityIds = stringArrayParameterToIntArray(municipalityIdStr)
-    // const eventTypeIds = stringArrayParameterToIntArray(eventTypeIdInt)
+    const municipalityIds = stringArrayParameterToIntArray(municipalityIdStr)
+    const eventTypeIds = stringArrayParameterToIntArray(eventTypeIdInt)
 
     try {
-        await prisma.subscriptions.create({
-            data: {
-                gcmToken
-            }
-        })
+        if ((!municipalityIds || municipalityIds.length === 0) && (!eventTypeIds || eventTypeIds?.length === 0)) {
+            await prisma.subscriptions.create({
+                data: {
+                    gcmToken
+                }
+            })
+        } else {
+            municipalityIds?.forEach(async municipalityId => {
+                await prisma.subscriptions.create({
+                    data: {
+                        gcmToken,
+                        municipalityId
+                    }
+                })
+            })
+
+            eventTypeIds?.forEach(async eventTypeId => {
+                await prisma.subscriptions.create({
+                    data: {
+                        gcmToken,
+                        eventTypeId
+                    }
+                })
+            })
+        }
     } catch (error) {
         handleError(error, res)
     }

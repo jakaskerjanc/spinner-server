@@ -30,11 +30,11 @@ export async function updateEvent (eventId: Event['id'], data: Partial<Event>) {
     })
 }
 
-export async function insertEvents (events: Event[]): Promise<number> {
-    const numberOfInsertedEvents = await prisma.event.createMany({
-        data: events
-    })
-    return numberOfInsertedEvents.count
+export async function insertEvents (events: Event[]) {
+    const insertedEvents = await Promise.all(events.map(event => prisma.event.create({
+        data: event
+    })))
+    return insertedEvents
 }
 
 export async function findLastInsertedEvent (): Promise<number | undefined> {

@@ -4,6 +4,7 @@ import { SpinEvent, SpinLargeEvent } from './types'
 import type { Event, Municipality, EventType } from '@prisma/client'
 import { fetchEvent, fetchEvents, fetchLargeEvents, fetchRssEventIds } from './eventFetch'
 import { findLastInsertedEvent, getAllEventTypes, getAllMunicipalities, getOnGoingEventIds, insertEvents, insertLargeEvents, insertLogEntry, updateEvent, updateStatusOnOldOnGoingEvents } from './databaseHandler'
+import { sendNotifications } from './notifications'
 
 let allMunicipalities: Municipality[] = []
 let allEventTypes: EventType[] = []
@@ -23,10 +24,15 @@ async function scrapeLatest () {
         return
     }
 
-    const nOfInserted = await scrapeFromToId(lastInsertedEventId + 1, lastSpinEventId)
+    const insertedEvents = await scrapeFromToId(lastInsertedEventId + 1, lastSpinEventId)
+    const nOfInserted = insertedEvents.length
     await insertLogEntry(Change.FETCH_LATEST, nOfInserted)
 
     console.log(`[Events]: Inserted ${nOfInserted} events`)
+
+    if (nOfInserted) {
+        await sendNotifications(insertedEvents)
+    }
 }
 
 async function updateOnGoingDescriptions () {
