@@ -92,9 +92,9 @@ app.get('/eventsArchive', eventsArchiveValidationChain, async (req: Request, res
                 AND
                 lon in (${Prisma.join(lonArr)})
                 AND
-                ST_Distance(POINT(${latParam}, ${lonParam}), Point(lat / 1000, lon / 1000)) <= ${distance} * 0.0015
+                ST_Distance_Sphere(POINT(${latParam}, ${lonParam}), Point(lat / 1000, lon / 1000)) / 1000 <= ${distance}
                 ORDER BY 
-                ST_Distance(Point(${latParam}, ${lonParam}), Point(lat / 1000, lon / 1000)) ASC;
+                ST_Distance_Sphere(Point(${latParam}, ${lonParam}), Point(lat / 1000, lon / 1000)) ASC;
             `).map(event => event.id)
         }
 
