@@ -5,10 +5,11 @@ import { Prisma, PrismaClient } from '@prisma/client'
 import type { Event } from '@prisma/client'
 import { query, check, matchedData, body } from 'express-validator'
 import { getBoundingBoxAsArray, handleError, stringArrayParameterToIntArray, validateRequestParams } from './utils'
-import { isUndefined } from 'lodash'
+import { isObject, isUndefined } from 'lodash'
 import { SpinEventsResponse, SpinLargeEventsResponse } from './scrapper/types'
 import cors from 'cors'
 import bodyParser from 'body-parser'
+import { subscriptionsToSubscriptionByToken } from './shared/utils'
 
 dotenv.config()
 const hostname = process.env.HOST ?? 'localhost'
@@ -270,13 +271,14 @@ app.get('/largeEventsArchive', largeEventsArchiveValidationChain, async (req: Re
     }
 })
 
-const subscribeToNotificationsValidationChain = [
-    body('gcmToken').notEmpty(),
+const notificationsPostValidationChain = [
+    body('gcmToken').notEmpty().trim(),
     body('municipalityIds').optional().isArray().toArray(),
-    body('eventTypeIds').optional().isArray().toArray()
+    body('eventTypeIds').optional().isArray().toArray(),
+    body('subscribeToAll').optional().isBoolean().toBoolean()
 ]
 
-app.post('/subscribeToNotifications', subscribeToNotificationsValidationChain, async (req: Request, res: Response) => {
+app.post('/notifications', notificationsPostValidationChain, async (req: Request, res: Response) => {
     const paramsValid = validateRequestParams(req, res)
     if (!paramsValid) {
         return
@@ -284,43 +286,98 @@ app.post('/subscribeToNotifications', subscribeToNotificationsValidationChain, a
     const {
         municipalityIds: municipalityIdStr,
         eventTypeIds: eventTypeIdInt,
-        gcmToken
+        gcmToken,
+        subscribeToAll
     } = matchedData(req)
+
+    const atLeastOneValuePresent = municipalityIdStr || eventTypeIdInt || subscribeToAll
+
+    if (!atLeastOneValuePresent) {
+        res.status(400).send()
+        return
+    }
 
     const municipalityIds = stringArrayParameterToIntArray(municipalityIdStr)
     const eventTypeIds = stringArrayParameterToIntArray(eventTypeIdInt)
 
     try {
-        if ((!municipalityIds || municipalityIds.length === 0) && (!eventTypeIds || eventTypeIds?.length === 0)) {
+        await prisma.subscriptions.deleteMany({
+            where: {
+                gcmToken
+            }
+        })
+
+        if (subscribeToAll) {
             await prisma.subscriptions.create({
                 data: {
                     gcmToken
                 }
             })
-        } else {
-            municipalityIds?.forEach(async municipalityId => {
-                await prisma.subscriptions.create({
-                    data: {
-                        gcmToken,
-                        municipalityId
-                    }
-                })
-            })
 
-            eventTypeIds?.forEach(async eventTypeId => {
-                await prisma.subscriptions.create({
-                    data: {
-                        gcmToken,
-                        eventTypeId
-                    }
-                })
-            })
+            res.send()
+            return
         }
+        municipalityIds?.forEach(async municipalityId => {
+            await prisma.subscriptions.create({
+                data: {
+                    gcmToken,
+                    municipalityId
+                }
+            })
+        })
+
+        eventTypeIds?.forEach(async eventTypeId => {
+            await prisma.subscriptions.create({
+                data: {
+                    gcmToken,
+                    eventTypeId
+                }
+            })
+        })
+
+        res.send()
+        return
     } catch (error) {
         handleError(error, res)
     }
+})
 
-    res.send()
+const notificationsGetValidationChain = [
+    query('gcmToken').notEmpty().trim()
+]
+
+app.get('/notifications', notificationsGetValidationChain, async (req: Request, res: Response) => {
+    const paramsValid = validateRequestParams(req, res)
+    if (!paramsValid) {
+        return
+    }
+    const { gcmToken } = matchedData(req)
+
+    try {
+        const subscriptions = await prisma.subscriptions.findMany({
+            where: {
+                gcmToken
+            },
+            select: {
+                eventType: true,
+                municipality: true,
+                gcmToken: true
+            }
+        })
+
+        const subscriptionByToken = subscriptionsToSubscriptionByToken(subscriptions)
+
+        // TODO: rewrite subscriptionsToSubscriptionByToken to handle this
+        const isEmptyObject = isObject(subscriptionByToken) && Object.keys(subscriptionByToken).length === 0
+        if (isEmptyObject) {
+            subscriptionByToken[gcmToken] = 'notSubscribed'
+        }
+
+        res.send(subscriptionByToken)
+        return
+    } catch (error) {
+        handleError(error, res)
+    }
 })
 
 app.listen(port, () => {

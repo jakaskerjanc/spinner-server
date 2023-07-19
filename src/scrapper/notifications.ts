@@ -1,5 +1,7 @@
 import axios from 'axios'
-import { PrismaClient, Event } from '@prisma/client'
+import { PrismaClient, Event, Municipality, EventType } from '@prisma/client'
+import { isObject } from 'lodash'
+import { subscriptionsToSubscriptionByToken } from '../shared/utils'
 
 const prisma = new PrismaClient()
 
@@ -37,47 +39,28 @@ export async function sendNotifications (insertedEvents: Event[]) {
             return
         }
 
-        const subscriptionsByToken = subscriptions.reduce((acc: Record<string, { subTriggeredFor: string[]}>, { gcmToken, eventType, municipality }) => {
-            if (!acc[gcmToken]) {
-                acc[gcmToken] = {
-                    subTriggeredFor: []
-                }
-            }
-            if (eventType) {
-                acc[gcmToken].subTriggeredFor.push(eventType.name)
-            }
-            if (municipality) {
-                acc[gcmToken].subTriggeredFor.push(municipality.name)
-            }
-            return acc
-        }, {})
+        const subscriptionByToken = subscriptionsToSubscriptionByToken(subscriptions)
 
-        const requestBodies = Object.entries(subscriptionsByToken).map(([token, { subTriggeredFor }]) => {
-            const subscribedToAll = subTriggeredFor.length === 0
-            const isMultiple = subTriggeredFor.length > 1
-            const startText = isMultiple ? 'Novi dogodki v aplikaciji Spinner' : 'Nov dogodek v aplikaciji Spinner'
-            const colon = subscribedToAll ? '' : ': '
-            const body = `${startText}${colon}${subTriggeredFor.join(', ')}`
-
+        const requestBodies = Object.entries(subscriptionByToken).map(([fcmToken, subscriptions]) => {
             return {
                 message: {
-                    token,
+                    token: fcmToken,
                     notification: {
                         title: 'Nov dogodek',
-                        body
+                        body: getNotificationBodyText(subscriptions)
                     }
                 }
             }
         })
 
         try {
-            const token = process.env.FCM_TOKEN
+            const authToken = process.env.FCM_TOKEN
 
             const promises = requestBodies.map(requestBody => {
                 return axios.post('https://fcm.googleapis.com/v1/projects/spinner-client/messages:send', requestBody, {
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`
+                        Authorization: `Bearer ${authToken}`
                     }
                 })
             })
@@ -86,10 +69,26 @@ export async function sendNotifications (insertedEvents: Event[]) {
             const rejected = results.filter(result => result.status === 'rejected')
             const fulfilled = results.filter(result => result.status === 'fulfilled')
             console.log(`[Send notifications]: ${fulfilled.length} fulfilled, ${rejected.length} rejected`)
+            // @ts-ignore
+            console.log(`[Send notifications]: Rejected for ${rejected.map(({ reason }) => reason).join(', ')}`)
         } catch (error) {
             console.log('Error sending notifications')
         }
     } catch (error) {
         console.log(error)
     }
+}
+
+function getNotificationBodyText (subscriptions: { eventType: EventType[], municipality: Municipality[] } | string) {
+    if (subscriptions === 'subscribedToAll') {
+        return 'Nov dogodek v aplikaciji Spinner'
+    }
+    const allNames = isObject(subscriptions) ? [...subscriptions.eventType, ...subscriptions.municipality].map(({ name }) => name) : []
+    const isMultiple = allNames.length > 1
+
+    if (!isMultiple) {
+        return `Nov dogodek v aplikaciji Spinner: ${allNames[0]}`
+    }
+
+    return `Novi dogodeki v aplikaciji Spinner: ${allNames.join(', ')}`
 }
