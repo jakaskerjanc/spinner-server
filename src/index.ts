@@ -197,6 +197,37 @@ app.get('/municipalities', async (_req: Request, res: Response) => {
     }
 })
 
+const municipalityBordersValidationChain = [
+    query('municipalityId').isArray().toArray().notEmpty()
+]
+
+app.get('/municipalityBorders', municipalityBordersValidationChain, async (req: Request, res: Response) => {
+    const paramsValid = validateRequestParams(req, res)
+    if (!paramsValid) {
+        return
+    }
+    const { municipalityId: municipalityIdStr } = matchedData(req)
+
+    const municipalityId = stringArrayParameterToIntArray(municipalityIdStr)
+
+    if (!municipalityId) {
+        res.status(400).send()
+        return
+    }
+
+    try {
+        const result = await prisma.$queryRaw`
+            SELECT id, ST_AsGeoJSON(outlinePolygon) as outlinePolygon
+            FROM Municipality
+            WHERE id in (${Prisma.join(municipalityId)})
+        `
+
+        res.send(result)
+    } catch (error) {
+        handleError(error, res)
+    }
+})
+
 app.get('/eventTypes', async (_req: Request, res: Response) => {
     try {
         const eventTypes = await prisma.eventType.findMany({
